@@ -84,42 +84,32 @@ export const AuthProvider = ({ children }) => {
 
   const signIn = async (email) => {
     try {
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: queryError } = await supabase
         .from('users')
         .select('id, email, role')
         .eq('email', email)
         .maybeSingle();
 
-      if (existingUser) {
-        const mockUser = {
-          id: existingUser.id,
-          email: existingUser.email,
-          user_metadata: {},
-          app_metadata: {},
-        };
-        setUser(mockUser);
-        setUserRole(existingUser.role);
-        return { data: mockUser, error: null };
-      } else {
-        const newUserId = crypto.randomUUID();
-        const { error: insertError } = await supabase.from('users').insert({
-          id: newUserId,
-          email: email,
-          role: 'customer',
-        });
+      if (queryError) throw queryError;
 
-        if (insertError) throw insertError;
-
-        const mockUser = {
-          id: newUserId,
-          email: email,
-          user_metadata: {},
-          app_metadata: {},
+      if (!existingUser) {
+        return {
+          data: null,
+          error: new Error('User account not found. Please contact support to create an account.')
         };
-        setUser(mockUser);
-        setUserRole('customer');
-        return { data: mockUser, error: null };
       }
+
+      const mockUser = {
+        id: existingUser.id,
+        email: existingUser.email,
+        user_metadata: {},
+        app_metadata: {},
+      };
+
+      setUser(mockUser);
+      setUserRole(existingUser.role);
+      localStorage.setItem('auth_user', JSON.stringify(mockUser));
+      return { data: mockUser, error: null };
     } catch (error) {
       return { data: null, error };
     }
@@ -132,6 +122,7 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     setUser(null);
     setUserRole(null);
+    localStorage.removeItem('auth_user');
     return { error: null };
   };
 

@@ -26,9 +26,35 @@ function LoginPage({ navigateTo }) {
 
     try {
       const { error } = await signIn(email);
-      if (error) throw error;
-      setMessage('Successfully signed in!');
-      setEmail('');
+
+      if (error && error.message.includes('not found')) {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create_user`;
+        const createResponse = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ email, role: 'customer' }),
+        });
+
+        const createData = await createResponse.json();
+
+        if (!createResponse.ok) {
+          throw new Error(createData.error || 'Failed to create account');
+        }
+
+        const { error: retryError } = await signIn(email);
+        if (retryError) throw retryError;
+
+        setMessage('Account created and signed in successfully!');
+        setEmail('');
+      } else if (error) {
+        throw error;
+      } else {
+        setMessage('Successfully signed in!');
+        setEmail('');
+      }
     } catch (error) {
       setMessage(error.message || 'An error occurred');
     } finally {
