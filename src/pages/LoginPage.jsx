@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './LoginPage.css';
 
 function LoginPage({ navigateTo }) {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const { signIn, signUp, user, isAdmin } = useAuth();
+  const [showModal, setShowModal] = useState(false);
+  const { signIn, user, isAdmin, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (isAdmin) {
+        navigateTo('admin');
+      } else {
+        navigateTo('home');
+      }
+    }
+  }, [user, isAdmin, authLoading, navigateTo]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,22 +25,11 @@ function LoginPage({ navigateTo }) {
     setMessage('');
 
     try {
-      if (isLogin) {
-        const { error } = await signIn(email, password);
-        if (error) throw error;
-        setMessage('Login successful!');
-        setTimeout(() => {
-          if (isAdmin) {
-            navigateTo('admin');
-          } else {
-            navigateTo('home');
-          }
-        }, 1000);
-      } else {
-        const { error } = await signUp(email, password);
-        if (error) throw error;
-        setMessage('Account created! Please check your email for verification.');
-      }
+      const { error } = await signIn(email);
+      if (error) throw error;
+      setMessage('Check your email for the magic link!');
+      setEmail('');
+      setTimeout(() => setShowModal(false), 3000);
     } catch (error) {
       setMessage(error.message || 'An error occurred');
     } finally {
@@ -39,20 +37,10 @@ function LoginPage({ navigateTo }) {
     }
   };
 
-  if (user && !isAdmin) {
+  if (authLoading) {
     return (
       <div className="login-page">
-        <div className="login-container">
-          <div className="login-card">
-            <div className="login-header">
-              <h2>Welcome Back!</h2>
-              <p>You are logged in as {user.email}</p>
-            </div>
-            <button className="btn-primary full-width" onClick={() => navigateTo('home')}>
-              Go to Home
-            </button>
-          </div>
-        </div>
+        <div className="loading">Loading...</div>
       </div>
     );
   }
@@ -62,66 +50,67 @@ function LoginPage({ navigateTo }) {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <h2>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
-            <p>{isLogin ? 'Login to your account' : 'Sign up for a new account'}</p>
+            <h2>Welcome to AuroraServices</h2>
+            <p>Sign in with your email to continue</p>
           </div>
 
-          <form onsubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <input
-                type="email"
-                className="form-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-              />
-            </div>
+          <button
+            className="btn-primary full-width"
+            onClick={() => setShowModal(true)}
+          >
+            Sign In / Sign Up
+          </button>
 
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="form-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-              />
-            </div>
+          <p className="hint">
+            We'll send you a magic link to sign in
+          </p>
+        </div>
+      </div>
 
-            {message && (
-              <div className={`message ${message.includes('error') || message.includes('Error') ? 'error' : 'success'}`}>
-                {message}
-              </div>
-            )}
-
-            <button type="submit" className="btn-primary full-width" disabled={loading}>
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Sign Up')}
-            </button>
-
-            <div className="switch-mode">
+      {showModal && (
+        <div className="modal active">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Enter Your Email</h2>
               <button
-                type="button"
-                className="link-button"
+                className="close-btn"
                 onClick={() => {
-                  setIsLogin(!isLogin);
+                  setShowModal(false);
                   setMessage('');
+                  setEmail('');
                 }}
               >
-                {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                &times;
               </button>
             </div>
 
-            {isLogin && (
-              <p className="hint">
-                Admin Demo: admin@auroraservices.com / admin123
-              </p>
-            )}
-          </form>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label className="form-label">Email Address</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {message && (
+                <div className={`message ${message.includes('error') || message.includes('Error') ? 'error' : 'success'}`}>
+                  {message}
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary full-width" disabled={loading}>
+                {loading ? 'Sending...' : 'Send Magic Link'}
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

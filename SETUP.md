@@ -2,11 +2,15 @@
 
 ## Admin Account Setup
 
-To create an admin account, you need to:
+The application now uses **Magic Link Authentication** (passwordless login).
 
-1. Sign up through the login page with email: `admin@auroraservices.com` and password: `admin123`
+To create an admin account:
 
-2. After signing up, run this SQL query in Supabase SQL Editor to grant admin privileges:
+1. Click "Sign In / Sign Up" on the login page
+2. Enter your email (e.g., `admin@auroraservices.com`) in the popup
+3. Check your email inbox for the magic link
+4. Click the magic link to sign in
+5. After signing in for the first time, run this SQL query in Supabase SQL Editor to grant admin privileges:
 
 ```sql
 UPDATE users
@@ -14,7 +18,7 @@ SET role = 'admin'
 WHERE email = 'admin@auroraservices.com';
 ```
 
-3. Log out and log back in to see the admin panel.
+6. Refresh the page or log out and log back in to access the admin panel.
 
 ## Customizable Features
 
@@ -33,11 +37,19 @@ The application comes pre-configured with:
 - Hero image from Unsplash
 - Discord link: https://discord.gg/auroraaccounts
 - Sample products and reviews
-- Fully functional authentication system
+- Magic link authentication (passwordless login)
+
+## Authentication Features
+
+- Passwordless login via magic links sent to email
+- No password management required
+- Secure email-based authentication
+- Automatic user creation on first login
+- Role-based access control (admin/customer)
 
 ## Tech Stack
 
 - React (JSX)
-- Supabase (Database & Authentication)
+- Supabase (Database & Authentication with Magic Links)
 - Vite (Build tool)
 - Pure CSS (No Tailwind)

@@ -43,14 +43,37 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserRole = async (userId) => {
     try {
-      const { data, error } = await supabase
+      const { data: session } = await supabase.auth.getSession();
+      const userEmail = session?.session?.user?.email;
+
+      let userData = await supabase
         .from('users')
-        .select('role')
+        .select('role, id')
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) throw error;
-      setUserRole(data?.role || 'customer');
+      if (!userData.data && userEmail) {
+        const userByEmail = await supabase
+          .from('users')
+          .select('role, id')
+          .eq('email', userEmail)
+          .maybeSingle();
+
+        if (userByEmail.data) {
+          userData = userByEmail;
+        } else {
+          await supabase.from('users').insert({
+            id: userId,
+            email: userEmail,
+            role: 'customer',
+          });
+          setUserRole('customer');
+          setLoading(false);
+          return;
+        }
+      }
+
+      setUserRole(userData.data?.role || 'customer');
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole('customer');
@@ -59,29 +82,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+  const signIn = async (email) => {
+    const { data, error } = await supabase.auth.signInWithOtp({
       email,
-      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
     });
     return { data, error };
   };
 
-  const signUp = async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (data.user && !error) {
-      await supabase.from('users').insert({
-        id: data.user.id,
-        email: data.user.email,
-        role: 'customer',
-      });
-    }
-
-    return { data, error };
+  const signUp = async (email) => {
+    return signIn(email);
   };
 
   const signOut = async () => {
