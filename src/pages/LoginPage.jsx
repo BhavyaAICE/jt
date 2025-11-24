@@ -6,7 +6,7 @@ function LoginPage({ navigateTo }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal] = useState(true);
   const { signIn, user, isAdmin, loading: authLoading } = useAuth();
 
   useEffect(() => {
@@ -27,9 +27,8 @@ function LoginPage({ navigateTo }) {
     try {
       const { error } = await signIn(email);
       if (error) throw error;
-      setMessage('Check your email for the magic link!');
+      setMessage('Successfully signed in!');
       setEmail('');
-      setTimeout(() => setShowModal(false), 3000);
     } catch (error) {
       setMessage(error.message || 'An error occurred');
     } finally {
@@ -54,16 +53,6 @@ function LoginPage({ navigateTo }) {
             <p>Sign in with your email to continue</p>
           </div>
 
-          <button
-            className="btn-primary full-width"
-            onClick={() => setShowModal(true)}
-          >
-            Sign In / Sign Up
-          </button>
-
-          <p className="hint">
-            We'll send you a magic link to sign in
-          </p>
         </div>
       </div>
 
@@ -105,7 +94,7 @@ function LoginPage({ navigateTo }) {
               )}
 
               <button type="submit" className="btn-primary full-width" disabled={loading}>
-                {loading ? 'Sending...' : 'Send Magic Link'}
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
           </div>

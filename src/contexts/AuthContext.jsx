@@ -83,13 +83,46 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signIn = async (email) => {
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    return { data, error };
+    try {
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id, email, role')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingUser) {
+        const mockUser = {
+          id: existingUser.id,
+          email: existingUser.email,
+          user_metadata: {},
+          app_metadata: {},
+        };
+        setUser(mockUser);
+        setUserRole(existingUser.role);
+        return { data: mockUser, error: null };
+      } else {
+        const newUserId = crypto.randomUUID();
+        const { error: insertError } = await supabase.from('users').insert({
+          id: newUserId,
+          email: email,
+          role: 'customer',
+        });
+
+        if (insertError) throw insertError;
+
+        const mockUser = {
+          id: newUserId,
+          email: email,
+          user_metadata: {},
+          app_metadata: {},
+        };
+        setUser(mockUser);
+        setUserRole('customer');
+        return { data: mockUser, error: null };
+      }
+    } catch (error) {
+      return { data: null, error };
+    }
   };
 
   const signUp = async (email) => {
@@ -97,8 +130,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    setUser(null);
+    setUserRole(null);
+    return { error: null };
   };
 
   const value = {

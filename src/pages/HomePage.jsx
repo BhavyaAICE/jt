@@ -37,9 +37,9 @@ function HomePage({ navigateTo }) {
         .select('*', { count: 'exact', head: true });
 
       setStats({
-        products: productCount || 1490,
-        customers: 380,
-        rating: 4.99
+        products: productCount || 5,
+        customers: 300,
+        rating: 4.8
       });
     } catch (error) {
       console.error('Error loading data:', error);
@@ -168,7 +168,7 @@ function HomePage({ navigateTo }) {
             <span className="star">★</span>
             <span className="star">★</span>
             <span className="star">★</span>
-            <span style={{ marginLeft: '8px', fontSize: '20px' }}>4.99</span>
+            <span style={{ marginLeft: '8px', fontSize: '20px' }}>4.8 (900 vouches)</span>
           </div>
         </div>
         <div className="reviews-grid">
