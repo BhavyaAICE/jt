@@ -13,6 +13,8 @@ function AdminDashboard({ navigateTo }) {
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     if (!user || !isAdmin) {
@@ -51,6 +53,24 @@ function AdminDashboard({ navigateTo }) {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
+
+  const getStockStatus = (stock) => {
+    if (stock === 0) return { label: 'Out of Stock', color: '#ef4444' };
+    if (stock < 10) return { label: 'Low Stock', color: '#fbbf24' };
+    return { label: 'In Stock', color: '#10b981' };
+  };
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (filterStatus === 'all') return matchesSearch;
+    if (filterStatus === 'in-stock') return matchesSearch && product.stock > 0;
+    if (filterStatus === 'out-of-stock') return matchesSearch && product.stock === 0;
+    if (filterStatus === 'featured') return matchesSearch && product.featured;
+
+    return matchesSearch;
+  });
 
   const handleLogout = async () => {
     await signOut();
@@ -123,6 +143,34 @@ function AdminDashboard({ navigateTo }) {
       loadData();
     } catch (error) {
       showToast('Error deleting review: ' + error.message, 'error');
+    }
+  };
+
+  const updateProductStock = async (id, newStock) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', id);
+      if (error) throw error;
+      showToast('Stock updated successfully!');
+      loadData();
+    } catch (error) {
+      showToast('Error updating stock: ' + error.message, 'error');
+    }
+  };
+
+  const toggleFeatured = async (product) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ featured: !product.featured })
+        .eq('id', product.id);
+      if (error) throw error;
+      showToast(`Product ${!product.featured ? 'featured' : 'unfeatured'} successfully!`);
+      loadData();
+    } catch (error) {
+      showToast('Error updating product: ' + error.message, 'error');
     }
   };
 
@@ -256,50 +304,106 @@ function AdminDashboard({ navigateTo }) {
                 + Add New Product
               </button>
             </div>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Product Name</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>Featured</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map(product => (
-                  <tr key={product.id}>
-                    <td>{product.name}</td>
-                    <td>{product.category}</td>
-                    <td>${product.sale_price?.toFixed(2)}</td>
-                    <td>{product.stock}</td>
-                    <td>
-                      <span className={`badge ${product.featured ? 'badge-success' : 'badge-warning'}`}>
-                        {product.featured ? 'Yes' : 'No'}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="action-btn"
-                        onClick={() => {
-                          setEditingProduct(product);
-                          setShowProductModal(true);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="action-btn"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+            <div className="product-controls">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search products by name or category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <select
+                className="filter-select"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="all">All Products ({products.length})</option>
+                <option value="in-stock">In Stock ({products.filter(p => p.stock > 0).length})</option>
+                <option value="out-of-stock">Out of Stock ({products.filter(p => p.stock === 0).length})</option>
+                <option value="featured">Featured ({products.filter(p => p.featured).length})</option>
+              </select>
+            </div>
+
+            <div className="products-grid-admin">
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map(product => {
+                  const stockStatus = getStockStatus(product.stock);
+                  return (
+                    <div key={product.id} className="product-card-admin">
+                      <div className="product-image-admin">
+                        <img src={product.image} alt={product.name} />
+                        <span className="stock-badge" style={{ backgroundColor: stockStatus.color }}>
+                          {stockStatus.label}
+                        </span>
+                      </div>
+                      <div className="product-info-admin">
+                        <h3>{product.name}</h3>
+                        <p className="category">{product.category}</p>
+                        <div className="price-row">
+                          <div className="price-info">
+                            <span className="original-price">${product.price?.toFixed(2)}</span>
+                            <span className="sale-price">${product.sale_price?.toFixed(2)}</span>
+                          </div>
+                          <span className={`featured-badge ${product.featured ? 'active' : ''}`}>
+                            {product.featured ? '★ Featured' : 'Not Featured'}
+                          </span>
+                        </div>
+                        <div className="stock-info">
+                          <span>Stock: <strong>{product.stock}</strong></span>
+                        </div>
+                        <div className="quick-actions">
+                          <button
+                            className={`quick-btn featured-toggle ${product.featured ? 'active' : ''}`}
+                            onClick={() => toggleFeatured(product)}
+                            title={product.featured ? 'Remove from featured' : 'Add to featured'}
+                          >
+                            ★
+                          </button>
+                          <button
+                            className="quick-btn stock-dec"
+                            onClick={() => updateProductStock(product.id, Math.max(0, product.stock - 1))}
+                            disabled={product.stock === 0}
+                            title="Decrease stock"
+                          >
+                            -
+                          </button>
+                          <span className="stock-display">{product.stock}</span>
+                          <button
+                            className="quick-btn stock-inc"
+                            onClick={() => updateProductStock(product.id, product.stock + 1)}
+                            title="Increase stock"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="product-actions">
+                          <button
+                            className="action-btn edit-btn"
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setShowProductModal(true);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="action-btn delete-btn"
+                            onClick={() => handleDeleteProduct(product.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="no-products">
+                  <p>No products found</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
