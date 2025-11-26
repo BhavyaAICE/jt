@@ -18,7 +18,7 @@ function AdminDashboard({ navigateTo }) {
 
   useEffect(() => {
     if (!user || !isAdmin) {
-      navigateTo('login');
+      navigateTo('home');
       return;
     }
     loadData();

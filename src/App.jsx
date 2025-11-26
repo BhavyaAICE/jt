@@ -3,17 +3,22 @@ import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import ProductsPage from './pages/ProductsPage';
-import LoginPage from './pages/LoginPage';
+import LoginModal from './components/LoginModal';
 import AdminDashboard from './pages/AdminDashboard';
 import Footer from './components/Footer';
 import './App.css';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const navigateTo = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (page === 'login') {
+      setShowLoginModal(true);
+    } else {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const renderPage = () => {
@@ -22,8 +27,6 @@ function App() {
         return <HomePage navigateTo={navigateTo} />;
       case 'products':
         return <ProductsPage />;
-      case 'login':
-        return <LoginPage navigateTo={navigateTo} />;
       case 'admin':
         return <AdminDashboard navigateTo={navigateTo} />;
       default:
@@ -47,6 +50,12 @@ function App() {
         </div>
 
         <Footer navigateTo={navigateTo} />
+
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          navigateTo={navigateTo}
+        />
       </div>
     </AuthProvider>
   );

@@ -5,7 +5,7 @@ import './Navbar.css';
 function Navbar({ navigateTo, currentPage }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +31,12 @@ function Navbar({ navigateTo, currentPage }) {
         section.scrollIntoView({ behavior: 'smooth' });
       }
     }
+    setMobileMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigateTo('home');
     setMobileMenuOpen(false);
   };
 
@@ -61,23 +67,28 @@ function Navbar({ navigateTo, currentPage }) {
           <li>
             <a onClick={() => scrollToSection('faq')}>FAQ</a>
           </li>
-          <li>
-            {user ? (
-              isAdmin ? (
-                <button className="nav-btn" onClick={() => { navigateTo('admin'); setMobileMenuOpen(false); }}>
-                  Admin Panel
+          {user ? (
+            <>
+              {isAdmin && (
+                <li>
+                  <button className="nav-btn" onClick={() => { navigateTo('admin'); setMobileMenuOpen(false); }}>
+                    Admin Panel
+                  </button>
+                </li>
+              )}
+              <li>
+                <button className="nav-btn" onClick={handleSignOut} style={{ background: 'transparent', border: '1px solid rgba(139, 92, 246, 0.5)' }}>
+                  Sign Out
                 </button>
-              ) : (
-                <button className="nav-btn" onClick={() => { navigateTo('login'); setMobileMenuOpen(false); }}>
-                  My Account
-                </button>
-              )
-            ) : (
+              </li>
+            </>
+          ) : (
+            <li>
               <button className="nav-btn" onClick={() => { navigateTo('login'); setMobileMenuOpen(false); }}>
                 Login
               </button>
-            )}
-          </li>
+            </li>
+          )}
         </ul>
 
         <button
