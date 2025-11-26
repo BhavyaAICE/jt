@@ -4,10 +4,12 @@ import './LoginPage.css';
 
 function LoginPage({ navigateTo }) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [showModal, setShowModal] = useState(true);
-  const { signIn, user, isAdmin, loading: authLoading } = useAuth();
+  const [messageType, setMessageType] = useState('info');
+  const { signIn, signUp, user, isAdmin, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -25,37 +27,35 @@ function LoginPage({ navigateTo }) {
     setMessage('');
 
     try {
-      const { error } = await signIn(email);
+      if (!email || !password) {
+        throw new Error('Please fill in all fields');
+      }
 
-      if (error && error.message.includes('not found')) {
-        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create_user`;
-        const createResponse = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ email, role: 'customer' }),
-        });
+      let result;
 
-        const createData = await createResponse.json();
-
-        if (!createResponse.ok) {
-          throw new Error(createData.error || 'Failed to create account');
+      if (isSignUp) {
+        result = await signUp(email, password);
+        if (!result.error) {
+          setMessageType('success');
+          setMessage('Account created successfully! You can now sign in.');
+          setEmail('');
+          setPassword('');
+          setTimeout(() => setIsSignUp(false), 2000);
         }
-
-        const { error: retryError } = await signIn(email);
-        if (retryError) throw retryError;
-
-        setMessage('Account created and signed in successfully!');
-        setEmail('');
-      } else if (error) {
-        throw error;
       } else {
-        setMessage('Successfully signed in!');
-        setEmail('');
+        result = await signIn(email, password);
+        if (!result.error) {
+          setMessageType('success');
+          setMessage('Signing in...');
+        }
+      }
+
+      if (result.error) {
+        setMessageType('error');
+        throw result.error;
       }
     } catch (error) {
+      setMessageType('error');
       setMessage(error.message || 'An error occurred');
     } finally {
       setLoading(false);
@@ -65,7 +65,10 @@ function LoginPage({ navigateTo }) {
   if (authLoading) {
     return (
       <div className="login-page">
-        <div className="loading">Loading...</div>
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>Loading...</p>
+        </div>
       </div>
     );
   }
@@ -75,57 +78,81 @@ function LoginPage({ navigateTo }) {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <h2>Welcome to AuroraServices</h2>
-            <p>Sign in with your email to continue</p>
+            <h1>AuroraServices</h1>
+            <p>{isSignUp ? 'Create your account' : 'Welcome back'}</p>
           </div>
 
-        </div>
-      </div>
-
-      {showModal && (
-        <div className="modal active">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>Enter Your Email</h2>
-              <button
-                className="close-btn"
-                onClick={() => {
-                  setShowModal(false);
-                  setMessage('');
-                  setEmail('');
-                }}
-              >
-                &times;
-              </button>
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label className="form-label">Email Address</label>
+              <input
+                type="email"
+                className="form-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                autoFocus
+                disabled={loading}
+              />
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  required
-                  autoFocus
-                />
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                className="form-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            {message && (
+              <div className={`message message-${messageType}`}>
+                {message}
               </div>
+            )}
 
-              {message && (
-                <div className={`message ${message.includes('error') || message.includes('Error') ? 'error' : 'success'}`}>
-                  {message}
-                </div>
+            <button
+              type="submit"
+              className="btn-primary full-width"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-small"></span>
+                  {isSignUp ? 'Creating account...' : 'Signing in...'}
+                </>
+              ) : (
+                isSignUp ? 'Sign Up' : 'Sign In'
               )}
+            </button>
+          </form>
 
-              <button type="submit" className="btn-primary full-width" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign In'}
+          <div className="login-footer">
+            <p>
+              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setMessage('');
+                  setEmail('');
+                  setPassword('');
+                }}
+                className="toggle-btn"
+              >
+                {isSignUp ? 'Sign In' : 'Sign Up'}
               </button>
-            </form>
+            </p>
           </div>
         </div>
-      )}
+
+        <div className="login-backdrop"></div>
+      </div>
     </div>
   );
 }

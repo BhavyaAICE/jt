@@ -18,62 +18,45 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
       if (session?.user) {
+        setUser(session.user);
         fetchUserRole(session.user.id);
       } else {
         setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
         if (session?.user) {
+          setUser(session.user);
           await fetchUserRole(session.user.id);
         } else {
+          setUser(null);
           setUserRole(null);
           setLoading(false);
         }
-      })();
-    });
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
   const fetchUserRole = async (userId) => {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const userEmail = session?.session?.user?.email;
-
-      let userData = await supabase
+      const { data, error } = await supabase
         .from('users')
-        .select('role, id')
+        .select('role')
         .eq('id', userId)
         .maybeSingle();
 
-      if (!userData.data && userEmail) {
-        const userByEmail = await supabase
-          .from('users')
-          .select('role, id')
-          .eq('email', userEmail)
-          .maybeSingle();
+      if (error) throw error;
 
-        if (userByEmail.data) {
-          userData = userByEmail;
-        } else {
-          await supabase.from('users').insert({
-            id: userId,
-            email: userEmail,
-            role: 'customer',
-          });
-          setUserRole('customer');
-          setLoading(false);
-          return;
-        }
+      if (data) {
+        setUserRole(data.role);
+      } else {
+        setUserRole('customer');
       }
-
-      setUserRole(userData.data?.role || 'customer');
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole('customer');
@@ -82,48 +65,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signIn = async (email) => {
+  const signUp = async (email, password) => {
     try {
-      const { data: existingUser, error: queryError } = await supabase
-        .from('users')
-        .select('id, email, role')
-        .eq('email', email)
-        .maybeSingle();
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-      if (queryError) throw queryError;
+      if (error) throw error;
 
-      if (!existingUser) {
-        return {
-          data: null,
-          error: new Error('User account not found. Please contact support to create an account.')
-        };
+      if (data.user) {
+        const { error: insertError } = await supabase.from('users').insert({
+          id: data.user.id,
+          email: data.user.email,
+          role: 'customer',
+        });
+
+        if (insertError && !insertError.message.includes('duplicate')) {
+          throw insertError;
+        }
+
+        return { data, error: null };
       }
 
-      const mockUser = {
-        id: existingUser.id,
-        email: existingUser.email,
-        user_metadata: {},
-        app_metadata: {},
-      };
-
-      setUser(mockUser);
-      setUserRole(existingUser.role);
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
-      return { data: mockUser, error: null };
+      return { data, error: null };
     } catch (error) {
       return { data: null, error };
     }
   };
 
-  const signUp = async (email) => {
-    return signIn(email);
+  const signIn = async (email, password) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
   };
 
   const signOut = async () => {
-    setUser(null);
-    setUserRole(null);
-    localStorage.removeItem('auth_user');
-    return { error: null };
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+      setUserRole(null);
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
   };
 
   const value = {
@@ -136,5 +131,9 @@ export const AuthProvider = ({ children }) => {
     isAdmin: userRole === 'admin',
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
